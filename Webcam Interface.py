@@ -21,12 +21,14 @@ face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_fronta
 
 # Function to switch webcam
 def switch_webcam(index, cap):
-    cap.release()
+    if cap is not None:
+        cap.release()
     return cv2.VideoCapture(index)
 
-# Initialize webcam
+
+# Initialize variables for the webcam and the current index
 current_cam_index = 0
-cap = switch_webcam(current_cam_index, None)
+cap = cv2.VideoCapture(current_cam_index)  # Directly initialize the first webcam
 
 while True:
     # Capture frame-by-frame
@@ -34,7 +36,7 @@ while True:
     if not ret:
         print("Failed to grab frame")
         break
-
+    
     # Convert frame to grayscale for face detection
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
@@ -79,7 +81,7 @@ while True:
     
     # Handle keyboard input
     key = cv2.waitKey(1)
-    if key & 0xFF == ord('q'):
+    if key & 0xFF == ord('q') or cv2.getWindowProperty('Emotion Recognition', cv2.WND_PROP_VISIBLE) < 1:
         # Quit the program
         break
     elif key & 0xFF == ord('n'):
