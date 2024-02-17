@@ -19,13 +19,20 @@ class_names = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'sad', 'surprise'
 # Load face detector model
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
+# Function to switch webcam
+def switch_webcam(index, cap):
+    cap.release()
+    return cv2.VideoCapture(index)
+
 # Initialize webcam
-cap = cv2.VideoCapture(0)
+current_cam_index = 0
+cap = switch_webcam(current_cam_index, None)
 
 while True:
     # Capture frame-by-frame
     ret, frame = cap.read()
     if not ret:
+        print("Failed to grab frame")
         break
 
     # Convert frame to grayscale for face detection
@@ -68,11 +75,25 @@ while True:
         cv2.putText(frame, emotion, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (36,255,12), 2)
 
     # Display the resulting frame
-    cv2.imshow('frame', frame)
+    cv2.imshow('Emotion Recognition', frame)
     
-    # Break the loop with the 'q' key
-    if cv2.waitKey(1) & 0xFF == ord('q'):
+    # Handle keyboard input
+    key = cv2.waitKey(1)
+    if key & 0xFF == ord('q'):
+        # Quit the program
         break
+    elif key & 0xFF == ord('n'):
+        # Switch to the next webcam
+        current_cam_index += 1
+        cap = switch_webcam(current_cam_index, cap)
+        if not cap.isOpened():
+            print(f"No webcam found at index {current_cam_index}, resetting to default webcam.")
+            current_cam_index = 0
+            cap = switch_webcam(current_cam_index, cap)
+    elif key & 0xFF == ord('p'):
+        # Switch to the previous webcam
+        current_cam_index = max(0, current_cam_index - 1)
+        cap = switch_webcam(current_cam_index, cap)
 
 # When everything is done, release the capture
 cap.release()
