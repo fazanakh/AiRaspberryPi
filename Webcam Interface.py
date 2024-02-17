@@ -14,7 +14,7 @@ input_shape = input_details[0]['shape']
 input_dtype = input_details[0]['dtype']
 
 # Define class names
-class_names = ['disgust', 'fear', 'happy', 'neutral', 'sad', 'surprise', 'angry']
+class_names = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'sad', 'surprise']
 
 # Initialize webcam
 cap = cv2.VideoCapture(0)
