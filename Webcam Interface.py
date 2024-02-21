@@ -9,6 +9,9 @@ def switch_webcam(index, cap):
         cap.release()
     return cv2.VideoCapture(index)
 
+current_cam_index = 0
+cap = cv2.VideoCapture(current_cam_index)  # Initial webcam
+
 # Load the TensorFlow Lite model and allocate tensors
 model_path = 'model.tflite'
 interpreter = tf.lite.Interpreter(model_path=model_path)
@@ -30,11 +33,9 @@ colors = {
 }
 
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-cap = cv2.VideoCapture(0)
 
 last_prediction_time = time.time()
 prediction_interval = 0.5  # Predict every 0.5 seconds
-last_emotion = None  # Track the last detected emotion
 
 while True:
     ret, frame = cap.read()
@@ -45,28 +46,35 @@ while True:
     faces = face_cascade.detectMultiScale(gray_frame, 1.1, 4)
 
     current_time = time.time()
-    if current_time - last_prediction_time >= prediction_interval:
-        for (x, y, w, h) in faces:
-            face_roi = frame[y:y+h, x:x+w]
-            resized_face = cv2.resize(face_roi, (input_shape[1], input_shape[2]))
-            img_array = np.expand_dims(resized_face.astype(np.float32) / 255.0, axis=0)
+    if current_time - last_prediction_time >= prediction_interval and len(faces) > 0:
+        # Predict only for the first detected face for simplicity
+        (x, y, w, h) = faces[0]
+        face_roi = frame[y:y+h, x:x+w]
+        resized_face = cv2.resize(face_roi, (input_shape[1], input_shape[2]))
+        img_array = np.expand_dims(resized_face.astype(np.float32) / 255.0, axis=0)
 
-            interpreter.set_tensor(input_details[0]['index'], img_array)
-            interpreter.invoke()
-            predictions = interpreter.get_tensor(output_details[0]['index'])[0]
-            emotion = class_names[np.argmax(predictions)]
-            box_color = colors[emotion]
+        interpreter.set_tensor(input_details[0]['index'], img_array)
+        interpreter.invoke()
+        predictions = interpreter.get_tensor(output_details[0]['index'])[0]
+        emotion_probabilities = tf.nn.softmax(predictions).numpy()  # Apply softmax to get probabilities
 
-            # Update the emotion and box color only if the emotion changes
-            if emotion != last_emotion:
-                last_emotion = emotion
-                last_prediction_time = current_time
+        last_prediction_time = current_time
 
-        # Draw the box and show the emotion text constantly
-        for (x, y, w, h) in faces:
+    # Draw the box and show the emotion text constantly for each detected face
+    for (x, y, w, h) in faces:
+        if emotion_probabilities is not None:
+            most_probable_emotion = np.argmax(emotion_probabilities)
+            box_color = colors[class_names[most_probable_emotion]]
             cv2.rectangle(frame, (x, y), (x+w, y+h), box_color, 2)
-            if last_emotion is not None:
-                cv2.putText(frame, last_emotion, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, box_color, 2)
+
+            # Adjust text position to ensure it stays on the screen
+            text_position = max(y - 10, 20)  # Keep text above the box or at least 20 pixels from the top
+            for i, probability in enumerate(emotion_probabilities):
+                text = f"{class_names[i]}: {probability*100:.2f}%"
+                cv2.putText(frame, text, (x, text_position - (i * 20)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, box_color, 1)
+        else:
+            # Draw a default box if no predictions have been made yet
+            cv2.rectangle(frame, (x, y), (x+w, y+h), (255, 255, 255), 2)
 
     cv2.imshow('Emotion Recognition', frame)
     
